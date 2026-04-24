@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RomynAI | IA Profesional</title>
+    <script src="https://www.paypal.com/sdk/js?client-id=Ae4D3wvcZ-CURdkyHwiqWxT1z15jIqVwhmR06u2C9SRLLImH4A_l5kLc7odZ1eGM9Rnpst43l_MMvL2O&currency=USD"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; color: #fff; font-family: Arial, sans-serif; padding: 10px; }
+        .agent-card, .chat-panel, .payment-panel { background: #111; border-radius: 16px; padding: 15px; margin-bottom: 15px; }
+        .agent-card { margin-bottom: 10px; padding: 12px; border-left: 3px solid #a855f7; cursor: pointer; }
+        .agent-card.active { background: #a855f720; }
+        .agent-card h3 { color: #a855f7; }
+        .messages-area { background: #0a0a0a; border-radius: 12px; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+        .message.user { text-align: right; }
+        .message.user .message-content { background: #a855f7; display: inline-block; padding: 8px 12px; border-radius: 16px; }
+        .message.assistant .message-content { background: #222; display: inline-block; padding: 8px 12px; border-radius: 16px; }
+        .message.system { text-align: center; color: #ff9800; font-size: 12px; }
+        .input-area { display: flex; gap: 8px; margin-top: 10px; }
+        .input-area input { flex: 1; padding: 12px; border-radius: 25px; border: none; background: #222; color: #fff; }
+        .input-area button { width: 45px; border-radius: 25px; border: none; background: #a855f7; color: white; font-size: 20px; }
+        .voice-btn { background: #ef4444 !important; }
+        .price { font-size: 28px; text-align: center; margin: 10px 0; }
+        .features li { list-style: none; padding: 5px 0; }
+        #paypal-button-container { margin-top: 15px; }
+        h1 { font-size: 24px; margin-bottom: 10px; }
+        h2 { font-size: 18px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<h1>🤖 RomynAI</h1>
+
+<!-- Agentes -->
+<div style="margin-bottom: 15px;">
+    <h2>Agentes Autónomos</h2>
+    <div id="agents-list">
+        <div class="agent-card active" data-agent="investigador"><h3>🔍 Investigador</h3><p>Análisis profundo</p></div>
+        <div class="agent-card" data-agent="analista"><h3>📊 Analista</h3><p>Datos y reportes</p></div>
+        <div class="agent-card" data-agent="creativo"><h3>🎨 Creativo</h3><p>Ideas creativas</p></div>
+        <div class="agent-card" data-agent="tecnico"><h3>⚙️ Técnico</h3><p>Soporte técnico</p></div>
+    </div>
+</div>
+
+<!-- Chat -->
+<div class="chat-panel">
+    <div class="messages-area" id="messages-area">
+        <div class="message assistant"><div class="message-content">👋 ¡Hola! Soy RomynAI. Usa el micrófono 🎤 o escribe.</div></div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Escribe...">
+        <button id="voice-btn" class="voice-btn">🎤</button>
+        <button id="send-btn">📤</button>
+    </div>
+</div>
+
+<!-- Pagos -->
+<div class="payment-panel">
+    <h2>💳 Plan Profesional</h2>
+    <div class="price">$9.00 <small>/mes</small></div>
+    <ul class="features"><li>✓ Agentes ilimitados</li><li>✓ Comandos de voz</li><li>✓ Soporte 24/7</li></ul>
+    <div id="paypal-button-container"></div>
+</div>
+
+<script>
+    // CONFIGURACIÓN
+    const DEEPSEEK_API_KEY = "sk-bac1bd66b6ce...";  // ← PON AQUÍ TU API KEY COMPLETA
+    
+    let currentAgent = "investigador";
+    let isPremiumUser = false;
+    let recognition = null;
+    let isRecording = false;
+
+    const agentPrompts = {
+        investigador: "Eres un agente investigador. Responde con información precisa y detallada.",
+        analista: "Eres un agente analista. Responde con datos y análisis estructurado.",
+        creativo: "Eres un agente creativo. Responde con ideas innovadoras y originales.",
+        tecnico: "Eres un agente técnico. Responde con soluciones técnicas y ejemplos."
+    };
+
+    function addMessage(text, type) {
+        const area = document.getElementById('messages-area');
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = `<div class="message-content">${text}</div>`;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    async function sendToAI(msg) {
+        if(!isPremiumUser) return "🔒 Para usar RomynAI, paga $9/mes con PayPal arriba.";
+        
+        try {
+            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "mistralai/mistral-7b-instruct:free", messages: [{ role: "system", content: agentPrompts[currentAgent] }, { role: "user", content: msg }] })
+            });
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content || "Error, intenta de nuevo.";
+        } catch(e) {
+            return "⚠️ Error de conexión.";
+        }
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const msg = input.value.trim();
+        if(!msg) return;
+        addMessage(msg, "user");
+        input.value = "";
+        addMessage("⏳ Pensando...", "assistant");
+        const response = await sendToAI(msg);
+        document.querySelector('.message.assistant:last-child').remove();
+        addMessage(response, "assistant");
+    }
+
+    function initVoice() {
+        if(!('webkitSpeechRecognition' in window)) { addMessage("❌ Voz no soportada", "system"); return false; }
+        const SpeechRecognition = window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.onresult = (e) => { document.getElementById('user-input').value = e.results[0][0].transcript; sendMessage(); };
+        recognition.onstart = () => { isRecording = true; document.getElementById('voice-btn').style.opacity = "0.5"; };
+        recognition.onend = () => { isRecording = false; document.getElementById('voice-btn').style.opacity = "1"; };
+        return true;
+    }
+
+    function setupPayPal() {
+        if(typeof paypal === 'undefined') return;
+        paypal.Buttons({ createOrder: (d,a) => a.order.create({ purchase_units: [{ amount: { value: '9.00' } }] }), onApprove: (d,a) => a.order.capture().then(() => { isPremiumUser = true; addMessage("✅ ¡Pago realizado! Acceso premium activado.", "system"); }) }).render('#paypal-button-container');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('send-btn').onclick = () => sendMessage();
+        document.getElementById('user-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+        if(initVoice()) document.getElementById('voice-btn').onclick = () => { if(recognition && !isRecording) recognition.start(); };
+        document.querySelectorAll('.agent-card').forEach(card => card.onclick = () => { document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('active')); card.classList.add('active'); currentAgent = card.dataset.agent; addMessage(`🔄 Agente: ${card.querySelector('h3').innerText}`, "system"); });
+        setupPayPal();
+    });
+</script>
+</body>
+</html>
